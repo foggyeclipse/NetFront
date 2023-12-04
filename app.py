@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 from miminet_config import SQLITE_DATABASE_NAME, SECRET_KEY
 from miminet_model import db, init_db, Network
 from miminet_auth import login_manager, login_index, google_login, google_callback, user_profile,\
-    vk_callback, logout
+    vk_callback, yandex_login, yandex_callback, logout
 from miminet_network import create_network, web_network, update_network_config, \
     delete_network, post_nodes, post_nodes_edges, move_nodes, web_network_shared, upload_network_picture, copy_network
 from miminet_simulation import run_simulation, check_simulation
@@ -37,13 +37,14 @@ login_manager.init_app(app)
 # Init Sitemap
 zero_days_ago = (datetime.now()).date().isoformat()
 
-
 # App add_url_rule
 # Login
 app.add_url_rule('/auth/login.html', methods=['GET', 'POST'], view_func=login_index)
 app.add_url_rule('/auth/google_login', methods=['GET'], view_func=google_login)
+app.add_url_rule('/auth/yandex_login', methods=['GET'], view_func=yandex_login)
 app.add_url_rule('/auth/vk_callback', methods=['GET'], view_func=vk_callback)
 app.add_url_rule('/auth/google_callback', methods=['GET'], view_func=google_callback)
+app.add_url_rule('/auth/yandex_callback', methods=['GET'], view_func=yandex_callback)
 app.add_url_rule('/user/profile.html', methods=['GET', 'POST'], view_func=user_profile)
 app.add_url_rule('/auth/logout', methods=['GET'], view_func=logout)
 
@@ -80,6 +81,15 @@ app.add_url_rule('/host/mimishark', methods=['GET'], view_func=mimishark_page)
 def index():  # put application's code here
     return render_template("index.html")
 
+@app.route('/yandex_token')
+def help():
+    return render_template('yandex_token.html')
+
+@app.route('/login')
+def login():
+    response = render_template('login.html')
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' http://127.0.0.1:5000"
+    return response
 
 @app.route('/home')
 @login_required
@@ -108,6 +118,7 @@ def sitemap():
     pages = []
     skip_pages = ['/nooffer.html', '/Sitemap.xml', '/sitemap.xml', '/404.html',
                   '/auth/google_login', '/auth/google_callback', '/auth/vk_callback',
+                  '/auth/yandex_login', '/auth/yandex_callback',
                   '/auth/logout', '/run_simulation', '/check_simulation',
                   '/network/update_network_config', '/host/save_config',
                   '/host/delete_job', '/host/hub_save_config', '/host/switch_save_config',
@@ -139,4 +150,4 @@ if __name__ == '__main__':
         if sys.argv[1] == "init":
             init_db(app)
     else:
-        app.run()
+        app.run(debug=True)

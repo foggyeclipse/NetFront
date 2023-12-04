@@ -8,7 +8,9 @@ from flask import redirect, url_for, request, flash, make_response, jsonify
 from miminet_model import db, Network, Simulate
 from flask_login import login_required, current_user
 
-from miminet_util import get_ip_and_mask_from_string, job_id_generator
+
+def job_id_generator():
+    return uuid.uuid4().hex
 
 
 @login_required
@@ -431,40 +433,30 @@ def save_host_config():
             if not host_ip_value:
                 continue
 
-            if not host_mask_value:
+            if not host_mask_value.isdigit():
+
                 # Check if we have 1.2.3.4/5 ?
-                host_ip_mask = get_ip_and_mask_from_string(host_ip_value)
-                if not host_ip_mask:
-                    ret.update({'warning': 'IP адрес или маска указаны неверно'})
+                ip_mask = host_ip_value.split('/')
+                if len(ip_mask) == 2:
+                    host_ip_value = ip_mask[0]
+                    host_mask_value = ip_mask[1]
+                else:
+                    ret.update({'warning': 'Не указана маска для IP адреса'})
                     continue
 
-                host_ip_value = host_ip_mask[0]
-                host_mask_value = host_ip_mask[1]
+            host_mask_value = int(host_mask_value)
 
-            elif not host_mask_value.isdigit():
-                # Check if we have 1.2.3.4/5 ?
-                host_ip_mask = get_ip_and_mask_from_string(host_ip_value)
-                if not host_ip_mask:
-                    ret.update({'warning': 'IP адрес или маска указаны неверно'})
-                    continue
+            if host_mask_value < 0 or host_mask_value > 32:
+                ret.update({'warning': 'Маска подсети указана неверно'})
+                continue
 
-                host_ip_value = host_ip_mask[0]
-                host_mask_value = host_ip_mask[1]
-
-            else:
-                try:
-                    ipaddress.ip_address(host_ip_value)
-                except ValueError:
-                    ret.update({'warning': 'IP адрес хоста указан неверно.'})
-                    return make_response(jsonify(ret), 200)
-
-                host_mask_value = int(host_mask_value)
-                if host_mask_value < 0 or host_mask_value > 32:
-                    ret.update({'warning': 'Маска хоста указана неверно.'})
-                    return make_response(jsonify(ret), 200)
-
-            interface['ip'] = host_ip_value
-            interface['netmask'] = host_mask_value
+            try:
+                socket.inet_aton(host_ip_value)
+                interface['ip'] = host_ip_value
+                interface['netmask'] = host_mask_value
+            except:
+                ret.update({'warning': 'IP адрес указан неверно.'})
+                continue
 
         host_label = request.form.get('config_host_name')
 
@@ -569,7 +561,6 @@ def save_router_config():
                     if job_id == 100:
                         job_100_arg_1 = request.form.get('config_router_add_ip_mask_iface_select_field')
                         job_100_arg_2 = request.form.get('config_router_add_ip_mask_ip_input_field')
-                        job_100_arg_3 = 0
 
                         if not job_100_arg_1:
                             ret.update({'warning': 'Не указан интерфейс адрес для команды "Добавить IP адрес"'})
@@ -580,58 +571,28 @@ def save_router_config():
                             return make_response(jsonify(ret), 200)
 
                         if not 'config_router_add_ip_mask_mask_input_field' in request.form:
+                            ret.update({'warning': 'Не указана маска для команды "Добавить IP адрес"'})
+                            return make_response(jsonify(ret), 200)
 
-                            # Check if we have 1.2.3.4/5 ?
-                            router_ip_mask = get_ip_and_mask_from_string(job_100_arg_2)
-                            if not router_ip_mask:
-                                ret.update({'warning': 'Не указана маска для команды "Добавить IP адрес"'})
-                                return make_response(jsonify(ret), 200)
+                        job_100_arg_3 = int(request.form.get('config_router_add_ip_mask_mask_input_field'))
 
-                            job_100_arg_2 = router_ip_mask[0]
-                            job_100_arg_3 = router_ip_mask[1]
+                        if job_100_arg_3 < 0 or job_100_arg_3 > 32:
+                            ret.update(
+                                {'warning': 'Маска для команды "Добавить IP адрес" указана неверно. Допустимые значения от 0 до 32.'})
+                            return make_response(jsonify(ret), 200)
 
-                        else:
-
-                            job_100_arg_3 = request.form.get('config_router_add_ip_mask_mask_input_field')
-
-                            if not job_100_arg_3.isdigit():
-                                # Check if we have 1.2.3.4/5 ?
-                                router_ip_mask = get_ip_and_mask_from_string(job_100_arg_2)
-                                if not router_ip_mask:
-                                    ret.update({'warning': 'IP адрес или маска для команды "Добавить IP адрес" указаны неверно'})
-                                    return make_response(jsonify(ret), 200)
-
-                                job_100_arg_2 = router_ip_mask[0]
-                                job_100_arg_3 = router_ip_mask[1]
-
-                            else:
-
-                                # Check if we have 1.2.3.4/5 ?
-                                router_ip_mask = get_ip_and_mask_from_string(job_100_arg_2)
-                                if router_ip_mask:
-                                    job_100_arg_2 = router_ip_mask[0]
-                                    job_100_arg_3 = router_ip_mask[1]
-
-                                try:
-                                    ipaddress.ip_address(job_100_arg_2)
-                                except ValueError:
-                                    ret.update({'warning': 'IP адрес для команды "Добавить IP адрес" указан неверно.'})
-                                    return make_response(jsonify(ret), 200)
-
-                                job_100_arg_3 = int(job_100_arg_3)
-                                if job_100_arg_3 < 0 or job_100_arg_3 > 32:
-                                    ret.update({'warning': 'Маска для команды "Добавить IP адрес" указана неверно.'})
-                                    return make_response(jsonify(ret), 200)
-
-                        jnet['jobs'].append({'id': job_id_generator(),
-                                             'level': job_level,
-                                             'job_id': job_id,
-                                             'host_id': node['data']['id'],
-                                             'arg_1': job_100_arg_1,
-                                             'arg_2': job_100_arg_2,
-                                             'arg_3': job_100_arg_3,
-                                             'print_cmd': 'ip addess add ' + str(job_100_arg_2) + '/' + str(job_100_arg_3) + ' dev ' + str(job_100_arg_1)})
-
+                        try:
+                            socket.inet_aton(job_100_arg_2)
+                            jnet['jobs'].append({'id': job_id_generator(),
+                                                 'level': job_level,
+                                                 'job_id': job_id,
+                                                 'host_id': node['data']['id'],
+                                                 'arg_1': job_100_arg_1,
+                                                 'arg_2': job_100_arg_2,
+                                                 'arg_3': job_100_arg_3,
+                                                 'print_cmd': 'ip addess add ' + str(job_100_arg_2) + '/' + str(job_100_arg_3) + ' dev ' + str(job_100_arg_1)})
+                        except Exception:
+                            ret.update({'warning': 'IP адрес для команды "Добавить IP адрес" указан неверно.'})
 
                     # add NAT masquerade to the interface
                     if job_id == 101:
@@ -704,40 +665,31 @@ def save_router_config():
             if not router_ip_value:
                 continue
 
-            if not router_mask_value:
+            if not router_mask_value.isdigit():
+
                 # Check if we have 1.2.3.4/5 ?
-                router_ip_mask = get_ip_and_mask_from_string(router_ip_value)
-                if not router_ip_mask:
-                    ret.update({'warning': 'IP адрес или маска указаны неверно'})
+                ip_mask = router_ip_value.split('/')
+                if len(ip_mask) == 2:
+                    router_ip_value = ip_mask[0]
+                    router_mask_value = ip_mask[1]
+                else:
+                    ret.update({'warning': 'Не указана маска для IP адреса'})
                     continue
 
-                router_ip_value = router_ip_mask[0]
-                router_mask_value = router_ip_mask[1]
+            router_mask_value = int(router_mask_value)
 
-            elif not router_mask_value.isdigit():
-                # Check if we have 1.2.3.4/5 ?
-                router_ip_mask = get_ip_and_mask_from_string(router_ip_value)
-                if not router_ip_mask:
-                    ret.update({'warning': 'IP адрес или маска указаны неверно'})
-                    continue
+            if router_mask_value < 0 or router_mask_value > 32:
+                ret.update({'warning': 'Маска подсети указана неверно'})
+                continue
 
-                router_ip_value = router_ip_mask[0]
-                router_mask_value = router_ip_mask[1]
-
-            else:
-                try:
-                    ipaddress.ip_address(router_ip_value)
-                except ValueError:
-                    ret.update({'warning': 'IP адрес роутера указан неверно.'})
-                    return make_response(jsonify(ret), 200)
-
-                router_mask_value = int(router_mask_value)
-                if router_mask_value < 0 or router_mask_value > 32:
-                    ret.update({'warning': 'Маска роутера указана неверно.'})
-                    return make_response(jsonify(ret), 200)
-
-            interface['ip'] = router_ip_value
-            interface['netmask'] = router_mask_value
+            try:
+                socket.inet_aton(router_ip_value)
+                interface['ip'] = router_ip_value
+                interface['netmask'] = router_mask_value
+            except Exception as e:
+                print(e)
+                ret.update({'warning': 'IP адрес указан неверно.'})
+                continue
 
         router_label = request.form.get('config_router_name')
 
@@ -935,47 +887,37 @@ def save_server_config():
 
             interface = ii[0]
 
-            server_ip_value = request.form.get('config_server_ip_' + str(iface_id))
-            server_mask_value = request.form.get('config_server_mask_' + str(iface_id))
+            host_ip_value = request.form.get('config_server_ip_' + str(iface_id))
+            host_mask_value = request.form.get('config_server_mask_' + str(iface_id))
 
             # If not IP
-            if not server_ip_value:
+            if not host_ip_value:
                 continue
 
-            if not server_mask_value:
+            if not host_mask_value.isdigit():
+
                 # Check if we have 1.2.3.4/5 ?
-                server_ip_mask = get_ip_and_mask_from_string(server_ip_value)
-                if not server_ip_mask:
-                    ret.update({'warning': 'IP адрес или маска указаны неверно'})
+                ip_mask = host_ip_value.split('/')
+                if len(ip_mask) == 2:
+                    host_ip_value = ip_mask[0]
+                    host_mask_value = ip_mask[1]
+                else:
+                    ret.update({'warning': 'Не указана маска для IP адреса'})
                     continue
 
-                server_ip_value = server_ip_mask[0]
-                server_mask_value = server_ip_mask[1]
+            host_mask_value = int(host_mask_value)
 
-            elif not server_mask_value.isdigit():
-                # Check if we have 1.2.3.4/5 ?
-                server_ip_mask = get_ip_and_mask_from_string(server_ip_value)
-                if not server_ip_mask:
-                    ret.update({'warning': 'IP адрес или маска указаны неверно'})
-                    continue
+            if host_mask_value < 0 or host_mask_value > 32:
+                ret.update({'warning': 'Маска подсети указана неверно'})
+                continue
 
-                server_ip_value = server_ip_mask[0]
-                server_mask_value = server_ip_mask[1]
-
-            else:
-                try:
-                    ipaddress.ip_address(server_ip_value)
-                except ValueError:
-                    ret.update({'warning': 'IP адрес сервера указан неверно.'})
-                    return make_response(jsonify(ret), 200)
-
-                server_mask_value = int(server_mask_value)
-                if server_mask_value < 0 or server_mask_value > 32:
-                    ret.update({'warning': 'Маска сервера указана неверно.'})
-                    return make_response(jsonify(ret), 200)
-
-            interface['ip'] = server_ip_value
-            interface['netmask'] = server_mask_value
+            try:
+                socket.inet_aton(host_ip_value)
+                interface['ip'] = host_ip_value
+                interface['netmask'] = host_mask_value
+            except:
+                ret.update({'warning': 'IP адрес указан неверно.'})
+                continue
 
         host_label = request.form.get('config_server_name')
 

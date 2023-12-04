@@ -1,18 +1,11 @@
 let selecteed_node_id = 0;
 let selected_edge_id = 0;
-let node_or_edge_focus = false;
-
-// Set global click handler.
-$(document).click(function(event) {
-    if (event.target.tagName !== 'CANVAS'){
-        node_or_edge_focus = false;
-    }
-});
 
 $('.drag').draggable({
     appendTo: 'body',
     helper: 'clone'
 });
+
 
 $('#network_scheme').droppable({
     activeClass: 'active',

@@ -37,6 +37,7 @@ class User(db.Model, UserMixin):
 
     vk_id = db.Column(db.String(255), nullable=True)
     google_id = db.Column(db.String(255), nullable=True)
+    yandex_id = db.Column(db.String(255), nullable=True)
 
 
 class Network(db.Model):

@@ -9,7 +9,27 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-KT5XZVF');</script>
 <!-- End Google Tag Manager -->
-
+<script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
+<!-- <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    window.YaAuthSuggest.init(
+      oauthQueryParams,
+      tokenPageOrigin,
+      {
+        view: "button",
+        parentId: "buttonContainerId",
+        buttonSize: 'm',
+        buttonView: 'icon',
+        buttonTheme: 'light',
+        buttonBorderRadius: "18",
+        buttonIcon: 'ya',
+      }
+    )
+    .then(({handler}) => handler())
+    .then(data => console.log('Сообщение с токеном', data))
+    .catch(error => console.log('Обработка ошибки', error));
+  });
+</script> -->
 
     <link rel="icon" href="{{ url_for('static', filename='/images/favlogo.ico') }}" type="image/x-icon">
     <meta charset="utf-8">
