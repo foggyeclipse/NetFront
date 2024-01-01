@@ -1,14 +1,14 @@
 import sys
 from datetime import datetime
 
-from flask import Flask, render_template, make_response
+from flask import Flask, redirect, render_template, make_response, url_for
 from flask_login import login_required, current_user
 from flask_migrate import Migrate
 
 from miminet_config import SQLITE_DATABASE_NAME, SECRET_KEY
 from miminet_model import db, init_db, Network
 from miminet_auth import login_manager, login_index, google_login, google_callback, user_profile,\
-    vk_callback, yandex_login, yandex_callback, logout
+    vk_callback, yandex_login, yandex_callback, logout, tg_callback
 from miminet_network import create_network, web_network, update_network_config, \
     delete_network, post_nodes, post_nodes_edges, move_nodes, web_network_shared, upload_network_picture, copy_network
 from miminet_simulation import run_simulation, check_simulation
@@ -45,6 +45,7 @@ app.add_url_rule('/auth/yandex_login', methods=['GET'], view_func=yandex_login)
 app.add_url_rule('/auth/vk_callback', methods=['GET'], view_func=vk_callback)
 app.add_url_rule('/auth/google_callback', methods=['GET'], view_func=google_callback)
 app.add_url_rule('/auth/yandex_callback', methods=['GET'], view_func=yandex_callback)
+app.add_url_rule('/auth/tg_callback', methods=['GET'], view_func=tg_callback)
 app.add_url_rule('/user/profile.html', methods=['GET', 'POST'], view_func=user_profile)
 app.add_url_rule('/auth/logout', methods=['GET'], view_func=logout)
 
@@ -76,19 +77,31 @@ app.add_url_rule('/host/switch_save_config', methods=['GET', 'POST'], view_func=
 # MimiShark
 app.add_url_rule('/host/mimishark', methods=['GET'], view_func=mimishark_page)
 
+@app.after_request
+def add_csp_headers(response):
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://oauth.telegram.org"
+    return response
 
 @app.route('/')
 def index():  # put application's code here
     return render_template("index.html")
 
-@app.route('/yandex_token')
-def help():
-    return render_template('yandex_token.html')
+# @app.route('/login')
+# def login():
+#     return render_template('login.html')
 
 @app.route('/login')
 def login():
-    response = render_template('login.html')
-    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' http://127.0.0.1:5000"
+    # Set Content-Security-Policy header with frame-ancestors 'none'
+    headers = {'Content-Security-Policy': "frame-ancestors 'self' https://oauth.telegram.org"}
+    
+    # Render HTML template or use your own HTML content
+    html_content = render_template('login.html')
+    
+    # Create a response with HTML content and headers
+    response = make_response(html_content)
+    response.headers.update(headers)
+    
     return response
 
 @app.route('/home')
@@ -98,6 +111,17 @@ def home():
     networks = Network.query.filter(Network.author_id == user.id).order_by(Network.id.desc()).all()
     return render_template("home.html", networks = networks)
 
+@app.route('/some_login_route')#, methods=['POST'])
+def some_login_route():
+    # Ваш код обработки аутентификации
+    # После успешной аутентификации перенаправление на /home
+    return render_template('callback.html')
+
+# # Добавляем новый маршрут для обработки страницы PHP
+# @app.route('/telegram_auth')
+# def telegram_auth():
+#     # Используем send_from_directory для включения кода из директории php_pages
+#     return app.send_from_directory('php_pages', 'telegram_auth.php')
 
 @app.route('/examples')
 def examples():
